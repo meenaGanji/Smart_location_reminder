@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="45dp" android:height="45dp">
+        <shape>
+            <solid android:color="@color/white" />
+                    <corners android:topLeftRadius="6dp" android:bottomLeftRadius="6dp"/>
+        </shape>
+    </item>
+    <item android:drawable="@drawable/ic_baseline_email_24"
+        android:height="24dp"
+        android:gravity="center"
+        android:width="24dp">
+
+    </item>
+</layer-list>

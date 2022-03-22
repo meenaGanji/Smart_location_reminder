@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "977253847013",
+    "project_id": "smart-location-reminder-27b42",
+    "storage_bucket": "smart-location-reminder-27b42.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:977253847013:android:efedba134092513b00290c",
+        "android_client_info": {
+          "package_name": "com.project.smartlocationreminder"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "977253847013-d95vt9heqsuv9mmo502s7dtsv83mtpep.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANW2Sy-A4mTxbQogKac2XxEVnu6B5KTpc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "977253847013-d95vt9heqsuv9mmo502s7dtsv83mtpep.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
