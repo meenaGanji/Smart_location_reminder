@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Smart Location  Reminder</string>
+    <string name="google_map_api_key">AIzaSyAYekdyouWxNmZTGEw-JQsDJsiMAN6wlMY</string>
 </resources>
