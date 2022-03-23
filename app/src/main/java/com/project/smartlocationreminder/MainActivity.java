@@ -11,9 +11,14 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.location.LocationManager;
+import android.location.LocationRequest;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -22,12 +27,17 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.common.internal.service.Common;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 
@@ -43,6 +53,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     NavigationView navigationView;
     TextView userEmail;
     ImageView homeMenu;
+    FloatingActionButton fabAddLocation;
+    FloatingActionButton fabDeleteLocation;
 
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -59,7 +71,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapFragment.getMapAsync(this);
         requestPermission();
         homeMenu.setOnClickListener(this);
-
+        fabAddLocation.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(MainActivity.this,AddReminderActivity.class));
+            }
+        });
+        fabDeleteLocation.setOnClickListener(this);
+        statusCheck();
 
     }
 
@@ -76,10 +95,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         userEmail = view.findViewById(R.id.userEmail);
 
         userEmail.setText(FirebaseAuth.getInstance().getCurrentUser().getEmail());
-
         seekBar.setMin(1);
         seekBar.setMax(500);
+
+        fabAddLocation=findViewById(R.id.addLocationReminder);
+        fabDeleteLocation=findViewById(R.id.deleteLocationReminder);
+        fabDeleteLocation.setVisibility(View.GONE);
+
     }
+
 
     @SuppressLint("MissingPermission")
     @Override
@@ -141,7 +165,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         SharedPreferences.Editor editor = getSharedPreferences("MY_PREFS_NAME", MODE_PRIVATE).edit();
         editor.putInt("seekBar", value);
         editor.apply();
-
     }
 
     private void GetSeekBarValue() {
@@ -167,5 +190,64 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             drawerLayout.openDrawer(GravityCompat.START);
         }
 
+//        if (view.getId() == R.id.addLocationReminder) {
+//
+//        }
     }
+
+    public void statusCheck() {
+        final LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            buildAlertMessageNoGps();
+
+        }
+    }
+
+    private void buildAlertMessageNoGps() {
+        final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Your GPS seems to be disabled, do you want to enable it?")
+                .setCancelable(false)
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    public void onClick(final DialogInterface dialog, final int id) {
+                        startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                    }
+                })
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    public void onClick(final DialogInterface dialog, final int id) {
+                        dialog.cancel();
+                    }
+                });
+        final AlertDialog alert = builder.create();
+        alert.show();
+    }
+
+
+//    protected void enableLocationSettings() {
+//        LocationRequest locationRequest = LocationRequest.create()
+//                .setInterval(10 * 1000)
+//                .setFastestInterval(2 * 1000)
+//                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+//
+//        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
+//                .addLocationRequest(locationRequest);
+//
+//        LocationServices
+//                .getSettingsClient(this)
+//                .checkLocationSettings(builder.build())
+//                .addOnSuccessListener(this, (LocationSettingsResponse response) -> {
+//                    // startUpdatingLocation(...);
+//                })
+//                .addOnFailureListener(this, ex -> {
+//                    if (ex instanceof ResolvableApiException) {
+//                        // Location settings are NOT satisfied,  but this can be fixed  by showing the user a dialog.
+//                        try {
+//                            // Show the dialog by calling startResolutionForResult(),  and check the result in onActivityResult().
+//                            ResolvableApiException resolvable = (ResolvableApiException) ex;
+//                            resolvable.startResolutionForResult(TrackingListActivity.this, REQUEST_CODE_CHECK_SETTINGS);
+//                        } catch (IntentSender.SendIntentException sendEx) {
+//                            // Ignore the error.
+//                        }
+//                    }
+//                });
+//    }
 }
