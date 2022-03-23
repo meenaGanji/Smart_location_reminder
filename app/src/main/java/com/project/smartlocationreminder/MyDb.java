@@ -105,8 +105,6 @@ public class MyDb extends SQLiteOpenHelper {
         values.put("title", reminder.getTitle());
         values.put("latitude", reminder.getLatitude());
         values.put("longitude", reminder.getLongitude());
-
-
         db.update(TABLE_REMINDER, values, "location_id = ?", new String[]{locationId});
 
     }

@@ -55,4 +55,9 @@ public class ListReminderActivity extends AppCompatActivity implements RefreshRe
     public void deletedItem(String location_id) {
         LoadReminders();
     }
+
+    @Override
+    public void updatedItem(String location_id) {
+        LoadReminders();
+    }
 }

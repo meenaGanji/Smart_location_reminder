@@ -56,6 +56,7 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.MyView
                 builder.show();
             }
         });
+        holder.editReminder.setOnClickListener(view -> new editLocationRemindDialog(context).Update(list.get(position)));
     }
 
     @Override
