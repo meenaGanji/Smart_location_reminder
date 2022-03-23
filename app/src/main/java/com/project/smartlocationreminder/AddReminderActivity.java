@@ -12,6 +12,7 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.GoogleMap;
@@ -23,6 +24,7 @@ public class AddReminderActivity extends AppCompatActivity implements OnMapReady
     GoogleMap mMap;
     boolean isPermissionGranted;
     EditText searchEt;
+    ImageView backIv;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,10 +35,13 @@ public class AddReminderActivity extends AppCompatActivity implements OnMapReady
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         requestPermission();
+
+        backIv.setOnClickListener(view -> onBackPressed());
     }
 
     private void InitMemberVariable() {
         searchEt = findViewById(R.id.searchEt);
+        backIv = findViewById(R.id.backButton);
     }
 
     @SuppressLint("MissingPermission")

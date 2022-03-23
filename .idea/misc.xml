@@ -11,12 +11,14 @@
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/drawable/ic_baseline_email_24.xml" value="0.22552083333333334" />
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/drawable/ic_baseline_security_24.xml" value="0.22552083333333334" />
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/layout/activity_add_reminder.xml" value="0.2" />
+        <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/layout/activity_list_reminder.xml" value="0.209375" />
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/layout/activity_login.xml" value="0.2" />
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/layout/activity_main.xml" value="0.25" />
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/layout/activity_register.xml" value="0.209375" />
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/layout/activity_splash.xml" value="0.18" />
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/layout/dialog_add_reminder.xml" value="0.209375" />
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/layout/header_layout.xml" value="0.33" />
+        <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/layout/row_reminder.xml" value="0.22" />
         <entry key="..\:/Users/S/AndroidStudioProjects/SmartLocationReminder/app/src/main/res/menu/menu.xml" value="0.209375" />
       </map>
     </option>

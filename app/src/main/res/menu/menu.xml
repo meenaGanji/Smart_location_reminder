@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/addLocation"
+        android:id="@+id/addLocationReminder"
         android:icon="@drawable/ic_baseline_add_24"
         android:title="Add Location Reminder"/>
 
+    <item
+        android:id="@+id/listReminder"
+        android:icon="@drawable/ic_baseline_playlist_add_check_24"
+        android:title="All Reminder List"/>
     <item
         android:id="@+id/logout"
         android:icon="@drawable/ic_baseline_security_24"

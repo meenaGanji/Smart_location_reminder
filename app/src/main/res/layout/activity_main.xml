@@ -40,15 +40,15 @@
             android:id="@+id/addLocationReminder"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:fabSize="mini"
-            android:foregroundGravity="center"
             android:layout_marginEnd="16dp"
             android:backgroundTint="@color/purple_700"
+            android:foregroundGravity="center"
             android:src="@drawable/ic_baseline_add_24"
+            app:fabSize="mini"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_bias="0.629" />
+            app:layout_constraintVertical_bias="0.758" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/constraintLayout"

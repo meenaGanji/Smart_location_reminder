@@ -21,6 +21,7 @@ import android.location.LocationManager;
 import android.location.LocationRequest;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.SeekBar;
@@ -43,7 +44,7 @@ import com.google.firebase.auth.FirebaseAuth;
 
 import java.security.Permissions;
 
-public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, SeekBar.OnSeekBarChangeListener, View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, SeekBar.OnSeekBarChangeListener, View.OnClickListener, NavigationView.OnNavigationItemSelectedListener {
 
     private GoogleMap mMap;
     boolean isPermissionGranted;
@@ -74,10 +75,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         fabAddLocation.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                startActivity(new Intent(MainActivity.this,AddReminderActivity.class));
+                startActivity(new Intent(MainActivity.this, AddReminderActivity.class));
             }
         });
         fabDeleteLocation.setOnClickListener(this);
+        navigationView.setNavigationItemSelectedListener(this);
         statusCheck();
 
     }
@@ -98,8 +100,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         seekBar.setMin(1);
         seekBar.setMax(500);
 
-        fabAddLocation=findViewById(R.id.addLocationReminder);
-        fabDeleteLocation=findViewById(R.id.deleteLocationReminder);
+        fabAddLocation = findViewById(R.id.addLocationReminder);
+        fabDeleteLocation = findViewById(R.id.deleteLocationReminder);
         fabDeleteLocation.setVisibility(View.GONE);
 
     }
@@ -219,6 +221,22 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 });
         final AlertDialog alert = builder.create();
         alert.show();
+    }
+
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.addLocationReminder) {
+            startActivity(new Intent(MainActivity.this, AddReminderActivity.class));
+        }
+        if (item.getItemId() == R.id.listReminder) {
+            startActivity(new Intent(MainActivity.this, ListReminderActivity.class));
+        }
+        if (item.getItemId() == R.id.logout) {
+            FirebaseAuth.getInstance().signOut();
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            finish();
+        }
+        return false;
     }
 
 
