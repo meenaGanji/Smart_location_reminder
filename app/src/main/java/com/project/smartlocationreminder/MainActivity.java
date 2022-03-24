@@ -17,6 +17,7 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.LocationManager;
 import android.location.LocationRequest;
 import android.os.Build;
@@ -37,12 +38,18 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 
 import java.security.Permissions;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, SeekBar.OnSeekBarChangeListener, View.OnClickListener, NavigationView.OnNavigationItemSelectedListener {
 
@@ -56,6 +63,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     ImageView homeMenu;
     FloatingActionButton fabAddLocation;
     FloatingActionButton fabDeleteLocation;
+    List<Reminder> list;
+    String selectedReminderId;
+    String selectedReminderTitle;
 
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -63,26 +73,48 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         InitMemberVaribale();
         seekBar.setOnSeekBarChangeListener(this);
         GetSeekBarValue();
 
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         requestPermission();
         homeMenu.setOnClickListener(this);
-        fabAddLocation.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(MainActivity.this, AddReminderActivity.class));
-            }
-        });
-        fabDeleteLocation.setOnClickListener(this);
+        fabAddLocation.setOnClickListener(view -> startActivity(new Intent(MainActivity.this, AddReminderActivity.class)));
+        fabDeleteLocation.setOnClickListener(view -> DeleteReminder());
+
         navigationView.setNavigationItemSelectedListener(this);
         statusCheck();
+        LoadReminders();
 
     }
+
+    private void DeleteReminder() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setTitle("Alert!!!");
+        builder.setMessage("Are you sure you want to delete?");
+        builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                new MyDb(MainActivity.this).deleteReminder(selectedReminderId);
+                LoadReminders();
+                AddMarkerOnMap();
+                fabDeleteLocation.setVisibility(View.GONE);
+            }
+        }).setNegativeButton("No", null);
+        builder.create();
+        builder.show();
+
+    }
+
+    private void LoadReminders() {
+        list = new ArrayList<>();
+        list.clear();
+        list = new MyDb(MainActivity.this).getReminderList();
+    }
+
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void InitMemberVaribale() {
@@ -118,6 +150,53 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         } else {
             requestPermission();
         }
+        AddMarkerOnMap();
+        mMap.setOnMapClickListener(latLng -> {
+            fabDeleteLocation.setVisibility(View.GONE);
+        });
+        mMap.setOnMarkerClickListener(marker -> {
+            marker.hideInfoWindow();
+            selectedReminderId = marker.getSnippet();
+            selectedReminderTitle = marker.getTitle();
+            fabDeleteLocation.setVisibility(View.VISIBLE);
+            return true;
+        });
+    }
+
+    private void AddMarkerOnMap() {
+        mMap.clear();
+        for (int i = 0; i < list.size(); i++) {
+            AddMarker(list.get(i));
+            addCircle(list.get(i));
+        }
+    }
+
+    private void AddMarker(Reminder reminder) {
+        MarkerOptions markerOptions = new MarkerOptions();
+        markerOptions.title(reminder.getTitle());
+        markerOptions.position(new LatLng(reminder.getLatitude(), reminder.getLongitude()));
+        markerOptions.snippet(reminder.getLocation_id());
+        mMap.addMarker(markerOptions);
+
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mMap != null) {
+            AddMarkerOnMap();
+        }
+    }
+
+    private void addCircle(Reminder reminder) {
+        CircleOptions circleOptions = new CircleOptions();
+        circleOptions.center(new LatLng(reminder.getLatitude(), reminder.getLongitude()));
+        circleOptions.radius(200);
+        circleOptions.strokeColor(Color.argb(255, 255, 0, 0));
+        circleOptions.fillColor(Color.argb(64, 255, 0, 0));
+        circleOptions.strokeWidth(4);
+        mMap.addCircle(circleOptions);
     }
 
     private void requestPermission() {
@@ -191,17 +270,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (view.getId() == R.id.homeMenu) {
             drawerLayout.openDrawer(GravityCompat.START);
         }
-
-//        if (view.getId() == R.id.addLocationReminder) {
-//
-//        }
     }
 
     public void statusCheck() {
         final LocationManager manager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             buildAlertMessageNoGps();
-
         }
     }
 
