@@ -34,7 +34,6 @@ public class RegisterActivity extends AppCompatActivity implements View.OnClickL
         btnRegister = findViewById(R.id.btnRegister);
         alreadyHaveAccount.setOnClickListener(this);
         btnRegister.setOnClickListener(this);
-
     }
 
     @Override
@@ -78,6 +77,5 @@ public class RegisterActivity extends AppCompatActivity implements View.OnClickL
                 }
             });
         }
-
     }
 }

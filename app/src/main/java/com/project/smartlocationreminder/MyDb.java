@@ -33,6 +33,8 @@ public class MyDb extends SQLiteOpenHelper {
                 + "id_auto" + " INTEGER PRIMARY KEY AUTOINCREMENT,"
                 + "location_id" + " TEXT, "
                 + "title" + " TEXT, "
+                + "date" + " TEXT, "
+                + "time" + " TEXT, "
                 + "latitude" + " DOUBLE,"
                 + "longitude" + " DOUBLE " + ")";
 
@@ -57,11 +59,13 @@ public class MyDb extends SQLiteOpenHelper {
             do {
                 String locationId = cursor.getString(1);
                 String title = cursor.getString(2);
-                double latitude = cursor.getDouble(3);
-                double longitude = cursor.getDouble(4);
+                String date = cursor.getString(3);
+                String time = cursor.getString(4);
+                double latitude = cursor.getDouble(5);
+                double longitude = cursor.getDouble(6);
 
 
-                listAlarm.add(new Reminder(locationId, title, latitude, longitude));
+                listAlarm.add(new Reminder(locationId, title, date, time, latitude, longitude));
             } while (cursor.moveToNext());
         }
 
@@ -70,9 +74,15 @@ public class MyDb extends SQLiteOpenHelper {
 
 
     public void deleteReminder(String locationID) {
+
         SQLiteDatabase db = this.getWritableDatabase();
-        db.delete(TABLE_REMINDER, "location_id" + " = ?",
+        int delete = db.delete(TABLE_REMINDER, "location_id" + " = ?",
                 new String[]{String.valueOf(locationID)});
+        if (delete == 1) {
+            Toast.makeText(context, "Deleted Location", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(context, "Location Not Deleted", Toast.LENGTH_SHORT).show();
+        }
         db.close();
     }
 
@@ -82,6 +92,8 @@ public class MyDb extends SQLiteOpenHelper {
         ContentValues values = new ContentValues();
         values.put("location_id", reminder.getLocation_id());
         values.put("title", reminder.getTitle());
+        values.put("date", reminder.getDate());
+        values.put("time", reminder.getTime());
         values.put("latitude", reminder.getLatitude());
         values.put("longitude", reminder.getLongitude());
 
@@ -95,14 +107,14 @@ public class MyDb extends SQLiteOpenHelper {
     }
 
 
-
-
     public void updateReminder(String locationId, Reminder reminder) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
 
         values.put("location_id", reminder.getLocation_id());
         values.put("title", reminder.getTitle());
+        values.put("date", reminder.getDate());
+        values.put("time", reminder.getTime());
         values.put("latitude", reminder.getLatitude());
         values.put("longitude", reminder.getLongitude());
         db.update(TABLE_REMINDER, values, "location_id = ?", new String[]{locationId});
@@ -121,14 +133,13 @@ public class MyDb extends SQLiteOpenHelper {
                 return new Reminder(
                         cursor.getString(1),
                         cursor.getString(2),
-                        cursor.getDouble(3),
-                        cursor.getDouble(4)
-                       );
-
+                        cursor.getString(3),
+                        cursor.getString(4),
+                        cursor.getDouble(5),
+                        cursor.getDouble(6)
+                );
             } while (cursor.moveToNext());
         }
         return null;
     }
-
-
 }

@@ -9,6 +9,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.widget.EditText;
@@ -37,6 +38,27 @@ public class AddReminderActivity extends AppCompatActivity implements OnMapReady
         requestPermission();
 
         backIv.setOnClickListener(view -> onBackPressed());
+        showDialogForSuggestion();
+    }
+
+    private void showDialogForSuggestion() {
+        SharedPreferences prefs = getSharedPreferences("dialog", MODE_PRIVATE);
+        boolean isAlreadyShown = prefs.getBoolean("bol", false);
+        if (!isAlreadyShown) {
+
+            AlertDialog.Builder builder=new AlertDialog.Builder(AddReminderActivity.this);
+            builder.setMessage("Long Click on Map and select Location for Reminder");
+
+            builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    SharedPreferences.Editor editor = getSharedPreferences("dialog", MODE_PRIVATE).edit();
+                    editor.putBoolean("bol", true);
+                    editor.apply();
+                }
+            });
+            builder.show();
+        }
     }
 
     private void InitMemberVariable() {

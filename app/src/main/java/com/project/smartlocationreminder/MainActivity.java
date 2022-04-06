@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -11,6 +12,10 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -19,9 +24,12 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.LocationManager;
-import android.location.LocationRequest;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
@@ -29,8 +37,19 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.firebase.geofire.GeoFire;
+import com.firebase.geofire.GeoLocation;
+import com.firebase.geofire.GeoQuery;
+import com.firebase.geofire.GeoQueryDataEventListener;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.common.internal.service.Common;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.Geofence;
+import com.google.android.gms.location.GeofencingClient;
+import com.google.android.gms.location.GeofencingRequest;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResponse;
@@ -42,13 +61,21 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
-import java.security.Permissions;
+
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, SeekBar.OnSeekBarChangeListener, View.OnClickListener, NavigationView.OnNavigationItemSelectedListener {
@@ -66,6 +93,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     List<Reminder> list;
     String selectedReminderId;
     String selectedReminderTitle;
+    GeofencingClient geofencingClient;
+    com.google.android.gms.location.LocationRequest locationRequest;
+    LocationCallback locationCallback;
+    FusedLocationProviderClient fusedLocationProviderClient;
+    boolean isLAlreadyZoom;
+    GeoFire geoFire;
+    DatabaseReference mRef;
+    int radius = 100;
+    GeoQuery geoQuery;
 
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -85,11 +121,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         fabAddLocation.setOnClickListener(view -> startActivity(new Intent(MainActivity.this, AddReminderActivity.class)));
         fabDeleteLocation.setOnClickListener(view -> DeleteReminder());
 
+        FirebaseApp.getInstance();
+        mRef = FirebaseDatabase.getInstance().getReference("MyLocation");
+        geoFire = new GeoFire(mRef);
+
         navigationView.setNavigationItemSelectedListener(this);
         statusCheck();
         LoadReminders();
-
     }
+
 
     private void DeleteReminder() {
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
@@ -145,7 +185,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMap = googleMap;
         mMap.getUiSettings().setZoomControlsEnabled(true);
         mMap.getUiSettings().setMyLocationButtonEnabled(true);
+
+        if (fusedLocationProviderClient != null) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+            fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
+        }
+
         if (isPermissionGranted) {
+            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
+
             mMap.setMyLocationEnabled(true);
         } else {
             requestPermission();
@@ -154,53 +204,123 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMap.setOnMapClickListener(latLng -> {
             fabDeleteLocation.setVisibility(View.GONE);
         });
-        mMap.setOnMarkerClickListener(marker -> {
-            marker.hideInfoWindow();
-            selectedReminderId = marker.getSnippet();
-            selectedReminderTitle = marker.getTitle();
-            fabDeleteLocation.setVisibility(View.VISIBLE);
-            return true;
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(@NonNull Marker marker) {
+                selectedReminderId = marker.getSnippet();
+                selectedReminderTitle = marker.getTitle();
+                fabDeleteLocation.setVisibility(View.VISIBLE);
+                marker.hideInfoWindow();
+                return true;
+            }
         });
     }
 
+
     private void AddMarkerOnMap() {
-        mMap.clear();
-        for (int i = 0; i < list.size(); i++) {
-            AddMarker(list.get(i));
-            addCircle(list.get(i));
+        if (mMap != null) {
+            //add new marker list,clear previous one
+            mMap.clear();
+
+            //before start new querry ,clear previous one
+            if (geoQuery != null) {
+                geoQuery.removeAllListeners();
+            }
+            for (int i = 0; i < list.size(); i++) {
+                AddMarker(list.get(i));
+            }
         }
     }
 
     private void AddMarker(Reminder reminder) {
-        MarkerOptions markerOptions = new MarkerOptions();
-        markerOptions.title(reminder.getTitle());
-        markerOptions.position(new LatLng(reminder.getLatitude(), reminder.getLongitude()));
-        markerOptions.snippet(reminder.getLocation_id());
-        mMap.addMarker(markerOptions);
+        CircleOptions circleOptions = new CircleOptions();
+        circleOptions.center(new LatLng(reminder.getLatitude(), reminder.getLongitude()));
+        circleOptions.radius(radius);
+        circleOptions.strokeColor(Color.argb(255, 255, 0, 0));
+        circleOptions.fillColor(Color.argb(64, 255, 0, 0));
+        circleOptions.strokeWidth(4);
+        mMap.addCircle(circleOptions);
+        mMap.addMarker(new MarkerOptions().title("Me").position(new LatLng(reminder.getLatitude(), reminder.getLongitude())).snippet(reminder.getLocation_id()));
+
+        float rad = radius / 1000f;
+        geoQuery = geoFire.queryAtLocation(new GeoLocation(reminder.getLatitude(), reminder.getLongitude()), rad);
+        geoQuery.addGeoQueryDataEventListener(new GeoQueryDataEventListener() {
+            @Override
+            public void onDataEntered(DataSnapshot dataSnapshot, GeoLocation location) {
+                PerformNotification(reminder, location);
+            }
+
+            @Override
+            public void onDataExited(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onDataMoved(DataSnapshot dataSnapshot, GeoLocation location) {
+
+            }
+
+            @Override
+            public void onDataChanged(DataSnapshot dataSnapshot, GeoLocation location) {
+
+            }
+
+            @Override
+            public void onGeoQueryReady() {
+
+            }
+
+            @Override
+            public void onGeoQueryError(DatabaseError error) {
+
+            }
+        });
 
 
+    }
+
+    private void PerformNotification(Reminder reminder, GeoLocation location) {
+
+        String channelId = "some_channel_id";
+
+        NotificationCompat.Builder notificationBuilder =
+                new NotificationCompat.Builder(this, channelId)
+                        .setSmallIcon(R.mipmap.ic_launcher_round)
+                        .setContentTitle(reminder.getTitle())
+                        .setContentText("Date: " + reminder.getDate() + "\n" + "Time: " + reminder.getTime())
+                        .setAutoCancel(true)
+                        .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL);
+
+        NotificationManager notificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        // Since android Oreo notification channel is needed.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(channelId,
+                    reminder.getTitle(),
+                    NotificationManager.IMPORTANCE_DEFAULT);
+            assert notificationManager != null;
+            notificationManager.createNotificationChannel(channel);
+        }
+
+        assert notificationManager != null;
+        notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
+        AddMarkerOnMap();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        LoadReminders();
         if (mMap != null) {
+            mMap.clear();
             AddMarkerOnMap();
         }
     }
 
-    private void addCircle(Reminder reminder) {
-        CircleOptions circleOptions = new CircleOptions();
-        circleOptions.center(new LatLng(reminder.getLatitude(), reminder.getLongitude()));
-        circleOptions.radius(200);
-        circleOptions.strokeColor(Color.argb(255, 255, 0, 0));
-        circleOptions.fillColor(Color.argb(64, 255, 0, 0));
-        circleOptions.strokeWidth(4);
-        mMap.addCircle(circleOptions);
-    }
 
     private void requestPermission() {
-        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
                     Manifest.permission.ACCESS_FINE_LOCATION)) {
                 new AlertDialog.Builder(MainActivity.this)
@@ -225,21 +345,34 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         } else {
             isPermissionGranted = true;
+            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
+
+            buildLocationRequest();
+            buildLocationCallBack();
         }
     }
 
-    @SuppressLint("MissingPermission")
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
         isPermissionGranted = true;
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
         mMap.setMyLocationEnabled(true);
+        buildLocationRequest();
+        buildLocationCallBack();
     }
 
     @Override
     public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+
         SaveSeekBarValue(i);
         GetSeekBarValue();
+        AddMarkerOnMap();
     }
 
     private void SaveSeekBarValue(int value) {
@@ -253,6 +386,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         int seekBarValue = prefs.getInt("seekBar", 0);
         radiusValue.setText(seekBarValue + "m");
         seekBar.setProgress(seekBarValue);
+        radius = seekBarValue;
     }
 
     @Override
@@ -262,7 +396,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onStopTrackingTouch(SeekBar seekBar) {
-
     }
 
     @Override
@@ -313,33 +446,31 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         return false;
     }
 
+    private void buildLocationCallBack() {
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
 
-//    protected void enableLocationSettings() {
-//        LocationRequest locationRequest = LocationRequest.create()
-//                .setInterval(10 * 1000)
-//                .setFastestInterval(2 * 1000)
-//                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-//
-//        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
-//                .addLocationRequest(locationRequest);
-//
-//        LocationServices
-//                .getSettingsClient(this)
-//                .checkLocationSettings(builder.build())
-//                .addOnSuccessListener(this, (LocationSettingsResponse response) -> {
-//                    // startUpdatingLocation(...);
-//                })
-//                .addOnFailureListener(this, ex -> {
-//                    if (ex instanceof ResolvableApiException) {
-//                        // Location settings are NOT satisfied,  but this can be fixed  by showing the user a dialog.
-//                        try {
-//                            // Show the dialog by calling startResolutionForResult(),  and check the result in onActivityResult().
-//                            ResolvableApiException resolvable = (ResolvableApiException) ex;
-//                            resolvable.startResolutionForResult(TrackingListActivity.this, REQUEST_CODE_CHECK_SETTINGS);
-//                        } catch (IntentSender.SendIntentException sendEx) {
-//                            // Ignore the error.
-//                        }
-//                    }
-//                });
-//    }
+                if (mMap != null) {
+                    geoFire.setLocation("Me", new GeoLocation(locationResult.getLastLocation().getLatitude(), locationResult.getLastLocation().getLongitude()), new GeoFire.CompletionListener() {
+                        @Override
+                        public void onComplete(String key, DatabaseError error) {
+                            if (!isLAlreadyZoom) {
+                                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(locationResult.getLastLocation().getLatitude(), locationResult.getLastLocation().getLongitude()), 20));
+                                isLAlreadyZoom = true;
+                            }
+                        }
+                    });
+                }
+            }
+        };
+    }
+
+    private void buildLocationRequest() {
+        locationRequest = new com.google.android.gms.location.LocationRequest();
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setInterval(5000);
+        locationRequest.setFastestInterval(3000);
+        locationRequest.setSmallestDisplacement(10f);
+    }
 }

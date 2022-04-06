@@ -36,6 +36,8 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.MyView
     @Override
     public void onBindViewHolder(@NonNull ReminderAdapter.MyViewHolder holder, @SuppressLint("RecyclerView") int position) {
         holder.titleTv.setText(list.get(position).getTitle());
+        holder.dateTimeTv.setText(list.get(position).getDate()+"  "+list.get(position).getTime());
+
         holder.latLngTv.setText(list.get(position).getLatitude() + ", " + list.get(position).getLongitude());
         holder.deleteReminder.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -67,6 +69,7 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.MyView
     public class MyViewHolder extends RecyclerView.ViewHolder {
         TextView titleTv, latLngTv;
         ImageView deleteReminder, editReminder;
+        TextView dateTimeTv;
 
         public MyViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -74,6 +77,7 @@ public class ReminderAdapter extends RecyclerView.Adapter<ReminderAdapter.MyView
             latLngTv = itemView.findViewById(R.id.latLngTv);
             editReminder = itemView.findViewById(R.id.editReminder);
             deleteReminder = itemView.findViewById(R.id.deletReminder);
+            dateTimeTv = itemView.findViewById(R.id.dateTimeTv);
         }
     }
 }

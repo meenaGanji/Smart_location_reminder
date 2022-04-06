@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="200dp"
+    android:layout_height="320dp"
     android:layout_gravity="center">
 
     <androidx.cardview.widget.CardView
@@ -65,6 +65,7 @@
 
             <Button
                 android:id="@+id/btnSave"
+                android:layout_width="0dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="8dp"
@@ -76,8 +77,8 @@
                 app:layout_constraintHorizontal_bias="0.5"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/nameEt"
-                tools:ignore="TouchTargetSizeCheck"
-                android:layout_width="0dp"/>
+                app:layout_constraintVertical_bias="0.938"
+                tools:ignore="TouchTargetSizeCheck" />
 
             <Button
                 android:id="@+id/btnCancel"
@@ -93,7 +94,50 @@
                 app:layout_constraintHorizontal_bias="0.5"
                 app:layout_constraintStart_toEndOf="@+id/btnSave"
                 app:layout_constraintTop_toBottomOf="@+id/nameEt"
+                app:layout_constraintVertical_bias="0.938"
                 tools:ignore="TouchTargetSizeCheck" />
+
+            <ImageView
+                android:id="@+id/dateIv"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="16dp"
+                app:layout_constraintStart_toStartOf="@+id/nameEt"
+                app:layout_constraintTop_toBottomOf="@+id/nameEt"
+                app:srcCompat="@drawable/ic_baseline_update_24" />
+
+            <TextView
+                android:id="@+id/dateTv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Select Date"
+                android:textColor="@color/white"
+                android:textSize="20sp"
+                app:layout_constraintBottom_toBottomOf="@+id/dateIv"
+                app:layout_constraintStart_toEndOf="@+id/dateIv"
+                app:layout_constraintTop_toTopOf="@+id/dateIv" />
+
+            <TextView
+                android:id="@+id/timeTv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Select Time"
+                android:textColor="@color/white"
+                android:textSize="20sp"
+                app:layout_constraintBottom_toBottomOf="@+id/timeIv"
+                app:layout_constraintStart_toEndOf="@+id/dateIv"
+                app:layout_constraintTop_toTopOf="@+id/timeIv" />
+
+            <ImageView
+                android:id="@+id/timeIv"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="16dp"
+                app:layout_constraintStart_toStartOf="@+id/dateIv"
+                app:layout_constraintTop_toBottomOf="@+id/dateIv"
+                app:srcCompat="@drawable/ic_baseline_access_time_24" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
