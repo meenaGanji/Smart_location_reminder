@@ -1,5 +1,7 @@
 package com.project.smartlocationreminder;
 
+import static com.project.smartlocationreminder.LocationService.geoQuery;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
@@ -80,8 +82,10 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, SeekBar.OnSeekBarChangeListener, View.OnClickListener, NavigationView.OnNavigationItemSelectedListener {
 
-    private GoogleMap mMap;
-    boolean isPermissionGranted;
+    public static GoogleMap mMap;
+    public static int radius = 100;
+    boolean isPermissionGrantedFine;
+    boolean isPermissionGrantedBackground;
     SeekBar seekBar;
     TextView radiusValue;
     DrawerLayout drawerLayout;
@@ -90,18 +94,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     ImageView homeMenu;
     FloatingActionButton fabAddLocation;
     FloatingActionButton fabDeleteLocation;
-    List<Reminder> list;
+
     String selectedReminderId;
     String selectedReminderTitle;
-    GeofencingClient geofencingClient;
-    com.google.android.gms.location.LocationRequest locationRequest;
-    LocationCallback locationCallback;
-    FusedLocationProviderClient fusedLocationProviderClient;
-    boolean isLAlreadyZoom;
-    GeoFire geoFire;
-    DatabaseReference mRef;
-    int radius = 100;
-    GeoQuery geoQuery;
+
+    private static int MY_FINE_LOCATION_REQUEST = 99;
+    private static int MY_BACKGROUND_LOCATION_REQUEST = 100;
+
+    LocationService mLocationService = new LocationService();
+    Intent mServiceIntent;
 
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -110,24 +111,54 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        InitMemberVaribale();
+        InitMemberVariable();
         seekBar.setOnSeekBarChangeListener(this);
         GetSeekBarValue();
 
+        requestPermission();
+
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-        requestPermission();
+
+        stopServiceFunc();
+
+        statusCheck();
         homeMenu.setOnClickListener(this);
         fabAddLocation.setOnClickListener(view -> startActivity(new Intent(MainActivity.this, AddReminderActivity.class)));
         fabDeleteLocation.setOnClickListener(view -> DeleteReminder());
 
         FirebaseApp.getInstance();
-        mRef = FirebaseDatabase.getInstance().getReference("MyLocation");
-        geoFire = new GeoFire(mRef);
-
         navigationView.setNavigationItemSelectedListener(this);
-        statusCheck();
-        LoadReminders();
+    }
+
+    private void requestPermission() {
+        //check fine location and background PERMISSION
+        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            if (mMap != null) {
+                mMap.setMyLocationEnabled(true);
+            }
+
+            stopServiceFunc();
+            starServiceFunc();
+        } else if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            isPermissionGrantedFine = true;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    requestBackgroundLocationPermission();
+                }
+            }
+        } else {
+            requestFineLocationPermission();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    requestBackgroundLocationPermission();
+                }
+            }
+        }
     }
 
 
@@ -139,8 +170,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
                 new MyDb(MainActivity.this).deleteReminder(selectedReminderId);
-                LoadReminders();
-                AddMarkerOnMap();
+                geoQuery.removeAllListeners();
+                stopServiceFunc();
+                starServiceFunc();
                 fabDeleteLocation.setVisibility(View.GONE);
             }
         }).setNegativeButton("No", null);
@@ -149,15 +181,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
-    private void LoadReminders() {
-        list = new ArrayList<>();
-        list.clear();
-        list = new MyDb(MainActivity.this).getReminderList();
-    }
-
 
     @RequiresApi(api = Build.VERSION_CODES.O)
-    private void InitMemberVaribale() {
+    private void InitMemberVariable() {
 
         drawerLayout = findViewById(R.id.drawer_layout);
         navigationView = findViewById(R.id.nav_View);
@@ -179,28 +205,18 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
 
-    @SuppressLint("MissingPermission")
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.getUiSettings().setZoomControlsEnabled(true);
         mMap.getUiSettings().setMyLocationButtonEnabled(true);
 
-        if (fusedLocationProviderClient != null) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-            fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, Looper.myLooper());
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
         }
+        mMap.setMyLocationEnabled(true);
+        requestPermission();
 
-        if (isPermissionGranted) {
-            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
-
-            mMap.setMyLocationEnabled(true);
-        } else {
-            requestPermission();
-        }
-        AddMarkerOnMap();
         mMap.setOnMapClickListener(latLng -> {
             fabDeleteLocation.setVisibility(View.GONE);
         });
@@ -216,139 +232,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
-
-    private void AddMarkerOnMap() {
-        if (mMap != null) {
-            //add new marker list,clear previous one
-            mMap.clear();
-
-            //before start new querry ,clear previous one
-            if (geoQuery != null) {
-                geoQuery.removeAllListeners();
-            }
-            for (int i = 0; i < list.size(); i++) {
-                AddMarker(list.get(i));
-            }
-        }
-    }
-
-    private void AddMarker(Reminder reminder) {
-        CircleOptions circleOptions = new CircleOptions();
-        circleOptions.center(new LatLng(reminder.getLatitude(), reminder.getLongitude()));
-        circleOptions.radius(radius);
-        circleOptions.strokeColor(Color.argb(255, 255, 0, 0));
-        circleOptions.fillColor(Color.argb(64, 255, 0, 0));
-        circleOptions.strokeWidth(4);
-        mMap.addCircle(circleOptions);
-        mMap.addMarker(new MarkerOptions().title("Me").position(new LatLng(reminder.getLatitude(), reminder.getLongitude())).snippet(reminder.getLocation_id()));
-
-        float rad = radius / 1000f;
-        geoQuery = geoFire.queryAtLocation(new GeoLocation(reminder.getLatitude(), reminder.getLongitude()), rad);
-        geoQuery.addGeoQueryDataEventListener(new GeoQueryDataEventListener() {
-            @Override
-            public void onDataEntered(DataSnapshot dataSnapshot, GeoLocation location) {
-                PerformNotification(reminder, location);
-            }
-
-            @Override
-            public void onDataExited(DataSnapshot dataSnapshot) {
-
-            }
-
-            @Override
-            public void onDataMoved(DataSnapshot dataSnapshot, GeoLocation location) {
-
-            }
-
-            @Override
-            public void onDataChanged(DataSnapshot dataSnapshot, GeoLocation location) {
-
-            }
-
-            @Override
-            public void onGeoQueryReady() {
-
-            }
-
-            @Override
-            public void onGeoQueryError(DatabaseError error) {
-
-            }
-        });
-
-
-    }
-
-    private void PerformNotification(Reminder reminder, GeoLocation location) {
-
-        String channelId = "some_channel_id";
-
-        NotificationCompat.Builder notificationBuilder =
-                new NotificationCompat.Builder(this, channelId)
-                        .setSmallIcon(R.mipmap.ic_launcher_round)
-                        .setContentTitle(reminder.getTitle())
-                        .setContentText("Date: " + reminder.getDate() + "\n" + "Time: " + reminder.getTime())
-                        .setAutoCancel(true)
-                        .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL);
-
-        NotificationManager notificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
-        // Since android Oreo notification channel is needed.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(channelId,
-                    reminder.getTitle(),
-                    NotificationManager.IMPORTANCE_DEFAULT);
-            assert notificationManager != null;
-            notificationManager.createNotificationChannel(channel);
-        }
-
-        assert notificationManager != null;
-        notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
-        AddMarkerOnMap();
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
-        LoadReminders();
         if (mMap != null) {
             mMap.clear();
-            AddMarkerOnMap();
-        }
-    }
-
-
-    private void requestPermission() {
-        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
-                    Manifest.permission.ACCESS_FINE_LOCATION)) {
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Permission Required")
-                        .setMessage("Location permission required!")
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                //Prompt the user once explanation has been shown
-                                ActivityCompat.requestPermissions(MainActivity.this,
-                                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                                        111);
-                            }
-                        })
-                        .create()
-                        .show();
-            } else {
-                // No explanation needed, we can request the permission.
-                ActivityCompat.requestPermissions(MainActivity.this,
-                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                        111);
-            }
-        } else {
-            isPermissionGranted = true;
-            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
-
-            buildLocationRequest();
-            buildLocationCallBack();
+            stopServiceFunc();
+            requestPermission();
         }
     }
 
@@ -357,22 +247,59 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
-        isPermissionGranted = true;
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
+        if (requestCode == MY_FINE_LOCATION_REQUEST) {
+            isPermissionGrantedFine = true;
+            if (mMap != null) {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    return;
+                }
+                mMap.setMyLocationEnabled(true);
+            }
+            requestBackgroundLocationPermission();
+
+        } else if (requestCode == MY_BACKGROUND_LOCATION_REQUEST) {
+            if (isPermissionGrantedFine) {
+                isPermissionGrantedBackground = true;
+                stopServiceFunc();
+                starServiceFunc();
+            }
+            //  Toast.makeText(this, "Background location Permission Granted", Toast.LENGTH_LONG).show();
         }
-        mMap.setMyLocationEnabled(true);
-        buildLocationRequest();
-        buildLocationCallBack();
+
+
+    }
+
+    @SuppressLint("MissingPermission")
+    private void starServiceFunc() {
+        mLocationService = new LocationService();
+        mServiceIntent = new Intent(this, mLocationService.getClass());
+        if (!Util.isMyServiceRunning(mLocationService.getClass(), this)) {
+            startService(mServiceIntent);
+            //  Toast.makeText(this, "Service Started", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
+    private void requestBackgroundLocationPermission() {
+        ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION},
+                MY_BACKGROUND_LOCATION_REQUEST);
+    }
+
+    private void requestFineLocationPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION,}, MY_FINE_LOCATION_REQUEST);
     }
 
     @Override
     public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-
         SaveSeekBarValue(i);
         GetSeekBarValue();
-        AddMarkerOnMap();
+        if (mMap != null) {
+            mMap.clear();
+        }
+        stopServiceFunc();
+        requestPermission();
+        // AddMarkerOnMap();
     }
 
     private void SaveSeekBarValue(int value) {
@@ -446,31 +373,11 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         return false;
     }
 
-    private void buildLocationCallBack() {
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-
-                if (mMap != null) {
-                    geoFire.setLocation("Me", new GeoLocation(locationResult.getLastLocation().getLatitude(), locationResult.getLastLocation().getLongitude()), new GeoFire.CompletionListener() {
-                        @Override
-                        public void onComplete(String key, DatabaseError error) {
-                            if (!isLAlreadyZoom) {
-                                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(locationResult.getLastLocation().getLatitude(), locationResult.getLastLocation().getLongitude()), 20));
-                                isLAlreadyZoom = true;
-                            }
-                        }
-                    });
-                }
-            }
-        };
-    }
-
-    private void buildLocationRequest() {
-        locationRequest = new com.google.android.gms.location.LocationRequest();
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(5000);
-        locationRequest.setFastestInterval(3000);
-        locationRequest.setSmallestDisplacement(10f);
+    private void stopServiceFunc() {
+        mLocationService = new LocationService();
+        mServiceIntent = new Intent(this, mLocationService.getClass());
+        if (Util.isMyServiceRunning(mLocationService.getClass(), this)) {
+            stopService(mServiceIntent);
+        }
     }
 }
